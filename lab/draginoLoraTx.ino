@@ -63,6 +63,7 @@ void onEvent (ev_t ev) {
 osjob_t txjob;
 osjob_t timeoutjob;
 static void tx_func (osjob_t* job);
+int packetNum = 1;
 
 // Transmit the given string and call the given function afterwards
 void tx(const char *str, osjobcb_t func) {
@@ -76,7 +77,7 @@ void tx(const char *str, osjobcb_t func) {
   Serial.println("TX");
 }
 
-// Enable rx mode and call func when a packet is received
+//// Enable rx mode and call func when a packet is received
 void rx(osjobcb_t func) {
   LMIC.osjob.func = func;
   LMIC.rxtime = os_getTime(); // RX _now_
@@ -108,6 +109,13 @@ static void rx_func (osjob_t* job) {
   Serial.println(" bytes");
   Serial.write(LMIC.frame, LMIC.dataLen);
   Serial.println();
+  if (LMIC.frame[0] == 65 && LMIC.frame[1] == 67 && LMIC.frame[2] == 75){
+    Serial.print("Received ACK!");
+    packetNum++;
+  } else {
+    Serial.print("Not an ACK");
+  }
+  Serial.println();
   Serial.print("DR=");
   Serial.println(LMIC.datarate); //see region specs eg 2=SF7, 3=SF9
   Serial.print("txpow=");
@@ -129,7 +137,10 @@ static void txdone_func (osjob_t* job) {
 // log text to USART and toggle LED
 static void tx_func (osjob_t* job) {
   // say hello
-  tx("Hello, Mannheim!", txdone_func);
+  String message = "Packet Num: " + String(packetNum);
+  char charBuf[50];
+  message.toCharArray(charBuf, 50);
+  tx(charBuf, txdone_func);
   // reschedule job every TX_INTERVAL (plus a bit of random to prevent
   // systematic collisions), unless packets are received, then rx_func
   // will reschedule at half this time.
@@ -161,7 +172,7 @@ void setup() {
   
   // Use a frequency in the g3 which allows 10% duty cycling.
   // TODO select different frequencies
-  LMIC.freq = 915525000;
+  LMIC.freq = 915400000;
 
   // Set data rate and transmit power (note: txpow seems to be ignored by the library)
   // for loraWAN  LMIC_setDrTxpow(DR_SF7,14);

@@ -1,18 +1,18 @@
-/*******************************************************************************
- * Copyright (c) 2015 Matthijs Kooijman
- *
- * Permission is hereby granted, free of charge, to anyone
- * obtaining a copy of this document and accompanying files,
- * to do whatever they want with them without any restriction,
- * including, but not limited to, copying, modification and redistribution.
- * NO WARRANTY OF ANY KIND IS PROVIDED.
- *
- * This example transmits data on hardcoded channel and receives data
- * when not transmitting. Running this sketch on two nodes should allow
- * them to communicate.
- * Source: https://github.com/dragino/Lora/tree/master/Lora%20Shield/Examples/lmic-raw-915
- * Tutorial http://wiki.dragino.com/index.php?title=Lora_Shield Example4 -- LMIC-RAW-915
- * Note changes are required to be made in the lmic library as explained in the Tutorial
+*******************************************************************************
+   Copyright (c) 2015 Matthijs Kooijman
+
+   Permission is hereby granted, free of charge, to anyone
+   obtaining a copy of this document and accompanying files,
+   to do whatever they want with them without any restriction,
+   including, but not limited to, copying, modification and redistribution.
+   NO WARRANTY OF ANY KIND IS PROVIDED.
+
+   This example transmits data on hardcoded channel and receives data
+   when not transmitting. Running this sketch on two nodes should allow
+   them to communicate.
+   Source: https://github.com/dragino/Lora/tree/master/Lora%20Shield/Examples/lmic-raw-915
+   Tutorial http://wiki.dragino.com/index.php?title=Lora_Shield Example4 -- LMIC-RAW-915
+   Note changes are required to be made in the lmic library as explained in the Tutorial
  *******************************************************************************/
 
 #include <lmic.h>
@@ -21,16 +21,16 @@
 
 #if !defined(DISABLE_INVERT_IQ_ON_RX)
 #error This example requires DISABLE_INVERT_IQ_ON_RX to be set. Update \
-       config.h in the lmic library to set it.
+config.h in the lmic library to set it.
 #endif
 
 
 /* TODO
-4.Edit the "main.cpp" to "Set center frequency" on your Raspberry Pi.
-change
-uint32_t freq = 868100000; //in Mhz! (868.1)
-to
-uint32_t freq = 915000000; //in Mhz! (915.0)
+  4.Edit the "main.cpp" to "Set center frequency" on your Raspberry Pi.
+  change
+  uint32_t freq = 868100000; //in Mhz! (868.1)
+  to
+  uint32_t freq = 915000000; //in Mhz! (915.0)
 */
 
 // How often to send a packet. Note that this sketch bypasses the normal
@@ -38,15 +38,15 @@ uint32_t freq = 915000000; //in Mhz! (915.0)
 // (payload length, frequency, spreading factor), be sure to check if
 // this interval should not also be increased.
 // See this spreadsheet for an easy airtime and duty cycle calculator:
-// https://docs.google.com/spreadsheets/d/1voGAtQAjC1qBmaVuP1ApNKs1ekgUjavHuVQIXyYSvNc 
-#define TX_INTERVAL 4000 
-
+// https://docs.google.com/spreadsheets/d/1voGAtQAjC1qBmaVuP1ApNKs1ekgUjavHuVQIXyYSvNc
+#define TX_INTERVAL 10000
+int rssi= 0; 
 // Pin mapping
 const lmic_pinmap lmic_pins = {
-    .nss = 10,
-    .rxtx = LMIC_UNUSED_PIN,
-    .rst = 9,
-    .dio = {2, 6, 7},
+  .nss = 10,
+  .rxtx = LMIC_UNUSED_PIN,
+  .rst = 9,
+  .dio = {2, 6, 7},
 };
 
 
@@ -97,11 +97,11 @@ static void rx_func (osjob_t* job) {
   digitalWrite(LED_BUILTIN, HIGH); // on
 
   // Timeout RX (i.e. update led status) after 3 periods without RX
-  os_setTimedCallback(&timeoutjob, os_getTime() + ms2osticks(3*TX_INTERVAL), rxtimeout_func);
+  os_setTimedCallback(&timeoutjob, os_getTime() + ms2osticks(3 * TX_INTERVAL), rxtimeout_func);
 
   // Reschedule TX so that it should not collide with the other side's
   // next TX
-  os_setTimedCallback(&txjob, os_getTime() + ms2osticks(TX_INTERVAL/2), tx_func);
+  //os_setTimedCallback(&txjob, os_getTime() + ms2osticks(TX_INTERVAL/2), tx_func);
 
   Serial.print("Got ");
   Serial.print(LMIC.dataLen);
@@ -118,7 +118,9 @@ static void rx_func (osjob_t* job) {
   Serial.println(LMIC.snr);
   Serial.println();
 
+  rssi = LMIC.rssi;
   // Restart RX
+  os_setTimedCallback(&txjob, os_getTime() + ms2osticks(TX_INTERVAL/1000), tx_func);
   rx(rx_func);
 }
 
@@ -129,26 +131,29 @@ static void txdone_func (osjob_t* job) {
 // log text to USART and toggle LED
 static void tx_func (osjob_t* job) {
   // say hello
-  tx("Hello, Mannheim!", txdone_func);
+  String message = "ACK RSSI: " + String(rssi);
+  char charBuf[50];
+  message.toCharArray(charBuf, 50);
+  tx(charBuf, txdone_func);
   // reschedule job every TX_INTERVAL (plus a bit of random to prevent
   // systematic collisions), unless packets are received, then rx_func
   // will reschedule at half this time.
-  os_setTimedCallback(job, os_getTime() + ms2osticks(TX_INTERVAL + random(500)), tx_func);
+  //os_setTimedCallback(job, os_getTime() + ms2osticks(TX_INTERVAL + random(500)), tx_func);
 }
 
 // application entry point
 void setup() {
   Serial.begin(9600); //115200);
   Serial.println("Starting");
-  #ifdef VCC_ENABLE
+#ifdef VCC_ENABLE
   // For Pinoccio Scout boards
   pinMode(VCC_ENABLE, OUTPUT);
   digitalWrite(VCC_ENABLE, HIGH);
 
   Serial.println(LMIC.freq); //from http://wiki.dragino.com/index.php?title=Lora_Shield
-  
+
   delay(1000);
-  #endif
+#endif
 
   pinMode(LED_BUILTIN, OUTPUT);
 
@@ -158,14 +163,14 @@ void setup() {
   // Set up these settings once, and use them for both TX and RX
 
   //see also void LMIC_setDrTxpow (dr_t dr, s1_t txpow)
-  
+
   // Use a frequency in the g3 which allows 10% duty cycling.
   // TODO select different frequencies
-  LMIC.freq = 915525000;
+  LMIC.freq = 915400000;
 
   // Set data rate and transmit power (note: txpow seems to be ignored by the library)
   // for loraWAN  LMIC_setDrTxpow(DR_SF7,14);
-    
+
   // Maximum TX power use 27;
   //TODO cycle through different txpowers
   LMIC.txpow = 2; //2 to 15
@@ -180,7 +185,7 @@ void setup() {
   Serial.flush();
 
   // setup initial job
-  os_setCallback(&txjob, tx_func);
+  os_setCallback(&txjob, rx_func);
 }
 
 void loop() {
